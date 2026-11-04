@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131518" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="血糖体重">
+<title>血糖 · 体重记录</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232f6f5e'/><path d='M22 32h56M22 50h56M22 68h56' stroke='%23fff' stroke-width='7' stroke-linecap='round'/></svg>">
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  :root{
+    --bg:#f6f3ec; --card:#fffdf8; --ink:#20242a; --muted:#8b8578;
+    --line:#e6e0d2; --line2:#d5cdba; --accent:#2f6f5e; --on-accent:#ffffff;
+    --focus:#e9f2ee; --danger:#b0473e;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#131518; --card:#1a1e23; --ink:#e8ebee; --muted:#98a0a8;
+      --line:#272c33; --line2:#343b44; --accent:#7ac9b2; --on-accent:#0f1f1a;
+      --focus:#1e2b27; --danger:#e88b83;
+    }
+  }
+  html{-webkit-text-size-adjust:100%;background:var(--bg)}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-tap-highlight-color:transparent;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  }
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* 顶栏 */
+  .top{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top)}
+  .top-in{max-width:620px;margin:0 auto;padding:10px 12px 9px}
+  .brand{font-size:11px;letter-spacing:.16em;color:var(--muted)}
+  .tabs{display:flex;gap:8px;margin-top:8px}
+  .tab{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:7px;
+    padding:9px 8px;border:1px solid var(--line2);border-radius:10px;background:var(--card);
+    color:var(--muted);font:inherit;font-size:15px;cursor:pointer}
+  .tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+  .tab .n{font-size:12px;font-weight:400;opacity:.8;font-variant-numeric:tabular-nums}
+
+  main{max-width:620px;margin:0 auto;padding:0 12px}
+  .add{width:100%;margin:12px 0 10px;padding:11px;border:1px dashed var(--line2);border-radius:10px;
+    background:transparent;color:var(--accent);font:inherit;font-size:15px;font-weight:600;cursor:pointer}
+  .add:active{background:var(--focus)}
+  .warn{margin:10px 0 0;padding:9px 10px;border-radius:9px;border:1px solid #d8b26b;
+    background:#fdf4de;color:#7b5712;font-size:13px;line-height:1.5}
+  @media (prefers-color-scheme: dark){.warn{border-color:#6b5527;background:#2a2313;color:#e3c37c}}
+
+  /* 表格 */
+  .sheet{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  col.c1{width:62px}
+  col.c2{width:74px}
+  col.c3{width:76px}
+  col.c4{width:34px}
+  th{font-size:11px;font-weight:500;letter-spacing:.04em;color:var(--muted);text-align:left;
+    padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden}
+  th small{display:block;font-size:9px;font-weight:400;letter-spacing:0;opacity:.9;margin-top:1px}
+  td{padding:0;height:45px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  button,input,select{touch-action:manipulation}
+
+  td input,td select{font:inherit;color:inherit;border-radius:0}
+  td input[type="number"],td input[type="text"],td select{
+    width:100%;height:45px;border:0;background:transparent;padding:0 6px;
+    -webkit-appearance:none;appearance:none}
+  td input[type="number"]{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+  td input[type="text"]{font-size:16px}
+  td select{font-size:15px;padding-right:16px;text-overflow:ellipsis}
+  td input::placeholder{color:var(--muted);opacity:.5}
+  td input:focus,td select:focus{outline:none;background:var(--focus);box-shadow:inset 0 0 0 1px var(--accent)}
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input[type=number]{-moz-appearance:textfield}
+
+  /* 日期：显示 MM-DD，原生日期框透明铺满整格 */
+  .datepick{position:relative;display:flex;align-items:center;height:45px;padding:0 6px;cursor:pointer}
+  .datepick span{font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .datepick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;font-size:16px;cursor:pointer}
+  .datepick:focus-within{background:var(--focus);box-shadow:inset 0 0 0 1px var(--accent)}
+
+  .selwrap{position:relative;display:flex;align-items:center;height:45px}
+  .selwrap .chev{position:absolute;right:5px;width:0;height:0;opacity:.75;pointer-events:none;
+    border-left:3.5px solid transparent;border-right:3.5px solid transparent;border-top:4.5px solid var(--muted)}
+
+  .del{width:100%;height:45px;border:0;background:transparent;color:var(--muted);
+    font-size:18px;line-height:1;padding:0;cursor:pointer}
+  .del:active{color:var(--danger);background:var(--focus)}
+
+  tr.empty td{height:auto;padding:34px 12px;text-align:center;color:var(--muted);font-size:14px}
+
+  /* 底部 */
+  .foot{max-width:620px;margin:14px auto 0;padding:0 12px}
+  .status{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .acts{display:flex;gap:8px;margin-top:10px}
+  .acts button{flex:1;padding:9px 2px;border:1px solid var(--line2);border-radius:9px;
+    background:var(--card);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
+  .acts button:active{background:var(--focus)}
+  .hint{margin:12px 0 0;font-size:11px;line-height:1.7;color:var(--muted);text-align:center}
+
+  /* 添加到桌面提示 */
+  .tip{display:flex;gap:8px;align-items:flex-start;margin:10px 0 0;padding:9px 10px;border-radius:9px;
+    border:1px solid var(--line2);background:var(--card);color:var(--muted);font-size:12.5px;line-height:1.55}
+  .tip b{color:var(--ink);font-weight:600}
+  .tip button{margin-left:auto;flex:none;border:0;background:transparent;color:var(--muted);
+    font:inherit;font-size:12px;padding:2px 4px;cursor:pointer;text-decoration:underline}
+
+  /* 小屏（≤360px）：收窄列宽，给备注留空间 */
+  @media (max-width:360px){
+    col.c1{width:56px}
+    col.c2{width:66px}
+    col.c3{width:72px}
+    col.c4{width:30px}
+    td select{font-size:13.5px;padding-right:12px}
+    .selwrap .chev{right:3px}
+  }
+</style>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="血糖体重">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">血糖 · 体重记录</div>
+    <div class="tabs" role="tablist" aria-label="记录类型">
+      <button class="tab" type="button" role="tab" data-sheet="glucose" aria-selected="true">血糖<span class="n">0</span></button>
+      <button class="tab" type="button" role="tab" data-sheet="weight" aria-selected="false">体重<span class="n">0</span></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="tip" id="tip" hidden>
+    <span>把这一页<b>加到手机桌面</b>：点浏览器右上角「⋮」→「添加到主屏幕」或「安装应用」。以后点图标直接打开。</span>
+    <button type="button" id="tipx">知道了</button>
+  </div>
+  <p class="warn" id="warn" hidden>这个浏览器不让网页保存数据（可能是无痕模式）。现在记的内容关掉页面就会丢失，请改用「备份」导出文件。</p>
+  <button class="add" id="add" type="button">＋ 添加一条</button>
+
+  <div class="sheet">
+    <table>
+      <colgroup>
+        <col class="c1">
+        <col class="c2">
+        <col class="c3">
+        <col>
+        <col class="c4">
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">日期</th>
+          <th scope="col"><span id="thname">血糖</span><small id="thunit">mmol/L</small></th>
+          <th scope="col">时点</th>
+          <th scope="col">备注</th>
+          <th scope="col"><span class="sr">操作</span></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="status"><span id="count">共 0 条</span><span id="saved">自动保存</span></div>
+  <div class="acts">
+    <button id="csv" type="button">导出 CSV</button>
+    <button id="backup" type="button">备份</button>
+    <button id="restore" type="button">恢复</button>
+    <button id="clear" type="button">清空本页</button>
+  </div>
+  <p class="hint">数据只存在这台手机的浏览器里，不上传<br>换手机或清缓存前，先点「备份」<br>只作记录，不构成医疗建议</p>
+</footer>
+
+<input type="file" id="file" accept=".json,application/json" hidden>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ===== core:start ===== */
+  var KEY = 'glw.v1';
+  var SCHEMA = {
+    glucose:{name:'血糖', unit:'mmol/L', ph:'5.6', tags:['空腹','餐前','餐后2h','睡前','随机']},
+    weight: {name:'体重', unit:'kg',    ph:'65.0', tags:['晨起','睡前','随机']}
+  };
+  var db = {glucose:[], weight:[]};
+  var tab = 'glucose';
+  var storageOK = true;
+  var savedAt = '';
+
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+  function ymd(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+  function hm(d){ return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function today(){ return ymd(new Date()); }
+
+  function uid(){
+    try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  /* 宽松解析：允许前后空格、小数逗号（5,6 → 5.6）；负数/非数字返回 null */
+  function parseVal(raw){
+    if(raw === null || raw === undefined) return null;
+    var t = String(raw).replace(/\s/g,'').replace(/。/g,'.').replace(/[，,]/g,',');
+    if(!t) return null;
+    if(t.indexOf(',') >= 0){
+      /* 只有一个逗号且没有小数点 → 当作小数逗号；否则当千位分隔符 */
+      t = (t.indexOf('.') < 0 && t.split(',').length === 2) ? t.replace(',', '.') : t.replace(/,/g,'');
+    }
+    var n = Number(t);
+    return isFinite(n) && n >= 0 ? Math.round(n*100)/100 : null;
+  }
+
+  function cleanRecord(raw){
+    if(!raw || typeof raw !== 'object') return null;
+    var date = typeof raw.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : null;
+    if(!date) return null;
+    var v = (raw.v === null || raw.v === undefined || raw.v === '') ? null : parseVal(raw.v);
+    var tag = typeof raw.tag === 'string' ? raw.tag.slice(0,20) : '';
+    var note = typeof raw.note === 'string' ? raw.note.slice(0,60) : '';
+    var seq = Number.isFinite(Number(raw.seq)) ? Number(raw.seq) : Date.now();
+    return {id:(typeof raw.id === 'string' && raw.id) ? raw.id : uid(), date:date, v:v, tag:tag, note:note, seq:seq};
+  }
+
+  /* 兼容 {data:{...}} 与 {glucose,weight} 两种备份结构 */
+  function normalize(obj){
+    if(!obj || typeof obj !== 'object') return null;
+    var src = (obj.data && typeof obj.data === 'object') ? obj.data : obj;
+    var g = Array.isArray(src.glucose) ? src.glucose.map(cleanRecord).filter(Boolean) : [];
+    var w = Array.isArray(src.weight)  ? src.weight.map(cleanRecord).filter(Boolean)  : [];
+    if(!g.length && !w.length) return null;
+    return {glucose:g, weight:w};
+  }
+
+  /* 日期倒序；同一天后加的在上 */
+  function sorted(key){
+    return db[key].slice().sort(function(a,b){
+      if(a.date !== b.date) return a.date < b.date ? 1 : -1;
+      return b.seq - a.seq;
+    });
+  }
+
+  /* 表格里只显示 MM-DD（完整年月日在点击后的日期选择器、CSV、备份里都有） */
+  function fmtDate(s){
+    return s.slice(5,7) + '-' + s.slice(8,10);
+  }
+
+  function csvCell(v){
+    var s = (v === null || v === undefined) ? '' : String(v);
+    if(/^[=+\-@]/.test(s)) s = "'" + s;
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  }
+
+  function buildCSV(){
+    var rows = [['类型','日期','数值','单位','时点','备注']];
+    ['glucose','weight'].forEach(function(k){
+      sorted(k).forEach(function(r){
+        rows.push([SCHEMA[k].name, r.date, r.v === null ? '' : r.v, SCHEMA[k].unit, r.tag || '', r.note || '']);
+      });
+    });
+    return '\ufeff' + rows.map(function(r){ return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
+  }
+
+  function buildBackup(){
+    return JSON.stringify({app:'glw', v:1, exportedAt:new Date().toISOString(), data:db}, null, 2);
+  }
+
+  function load(){
+    var raw = null;
+    try{
+      raw = localStorage.getItem(KEY);
+      localStorage.setItem(KEY + '.probe', '1');
+      localStorage.removeItem(KEY + '.probe');
+    }catch(e){ storageOK = false; return; }
+    if(!raw) return;
+    try{
+      var n = normalize(JSON.parse(raw));
+      if(n){ db.glucose = n.glucose; db.weight = n.weight; }
+    }catch(e){ /* 数据损坏就当空表，不打扰用户 */ }
+  }
+
+  function save(){
+    if(!storageOK) return;
+    if(saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, 250);
+  }
+
+  function flush(){
+    if(saveTimer){ clearTimeout(saveTimer); saveTimer = null; }
+    if(!storageOK) return;
+    try{
+      localStorage.setItem(KEY, JSON.stringify({v:1, glucose:db.glucose, weight:db.weight}));
+      savedAt = hm(new Date());
+    }catch(e){ storageOK = false; notifyStorageFail(); }
+    updateStatus();
+  }
+
+  var saveTimer = null;
+  /* ===== core:end ===== */
+
+  /* ---------- 界面 ---------- */
+  var elBody   = document.getElementById('tbody');
+  var elCount  = document.getElementById('count');
+  var elSaved  = document.getElementById('saved');
+  var elName   = document.getElementById('thname');
+  var elUnit   = document.getElementById('thunit');
+  var elWarn   = document.getElementById('warn');
+
+  function notifyStorageFail(){
+    if(elWarn) elWarn.hidden = false;
+  }
+
+  function updateStatus(){
+    if(!elCount) return;
+    elCount.textContent = '共 ' + db[tab].length + ' 条';
+    elSaved.textContent = storageOK ? (savedAt ? '已保存 ' + savedAt : '自动保存') : '未保存';
+  }
+
+  function buildRow(key, rec){
+    var cfg = SCHEMA[key];
+    var tr = document.createElement('tr');
+    tr.setAttribute('data-id', rec.id);
+
+    /* 日期 */
+    var td1 = document.createElement('td');
+    var lab = document.createElement('label');
+    lab.className = 'datepick';
+    var sp = document.createElement('span');
+    sp.textContent = fmtDate(rec.date);
+    var di = document.createElement('input');
+    di.type = 'date';
+    di.value = rec.date;
+    di.setAttribute('aria-label', '日期 ' + rec.date);
+    lab.title = rec.date;
+    di.addEventListener('change', function(){
+      if(!di.value) return;
+      rec.date = di.value;
+      save();
+      render();
+    });
+    lab.appendChild(sp);
+    lab.appendChild(di);
+    td1.appendChild(lab);
+
+    /* 数值 */
+    var td2 = document.createElement('td');
+    var vi = document.createElement('input');
+    vi.type = 'number';
+    vi.inputMode = 'decimal';
+    vi.step = '0.1';
+    vi.min = '0';
+    vi.placeholder = cfg.ph;
+    vi.setAttribute('aria-label', cfg.name + '，单位 ' + cfg.unit);
+    vi.value = rec.v === null ? '' : String(rec.v);
+    vi.addEventListener('input', function(){
+      rec.v = parseVal(vi.value);
+      save();
+    });
+    vi.addEventListener('blur', function(){
+      var t = vi.value.trim();
+      if(!t){ rec.v = null; save(); return; }
+      var n = parseVal(t);
+      if(n === null){ vi.value = rec.v === null ? '' : String(rec.v); return; }
+      rec.v = n;
+      vi.value = String(n);
+      save();
+    });
+    vi.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); vi.blur(); }
+    });
+    td2.appendChild(vi);
+
+    /* 时点 */
+    var td3 = document.createElement('td');
+    var wrap = document.createElement('div');
+    wrap.className = 'selwrap';
+    var se = document.createElement('select');
+    se.setAttribute('aria-label', '时点');
+    var opts = cfg.tags.slice();
+    if(rec.tag && opts.indexOf(rec.tag) < 0) opts.push(rec.tag);
+    for(var j = 0; j < opts.length; j++){
+      var o = document.createElement('option');
+      o.value = opts[j];
+      o.textContent = opts[j];
+      if(opts[j] === rec.tag) o.selected = true;
+      se.appendChild(o);
+    }
+    if(!rec.tag) rec.tag = cfg.tags[0];
+    se.addEventListener('change', function(){ rec.tag = se.value; save(); });
+    var chev = document.createElement('span');
+    chev.className = 'chev';
+    wrap.appendChild(se);
+    wrap.appendChild(chev);
+    td3.appendChild(wrap);
+
+    /* 备注 */
+    var td4 = document.createElement('td');
+    var ni = document.createElement('input');
+    ni.type = 'text';
+    ni.maxLength = 60;
+    ni.setAttribute('aria-label', '备注');
+    ni.value = rec.note || '';
+    ni.addEventListener('input', function(){ rec.note = ni.value; save(); });
+    ni.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); ni.blur(); }
+    });
+    td4.appendChild(ni);
+
+    /* 删除 */
+    var td5 = document.createElement('td');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'del';
+    btn.textContent = '×';
+    btn.setAttribute('aria-label', '删除这条记录');
+    btn.addEventListener('click', function(){ delRecord(key, rec.id); });
+    td5.appendChild(btn);
+
+    tr.appendChild(td1);
+    tr.appendChild(td2);
+    tr.appendChild(td3);
+    tr.appendChild(td4);
+    tr.appendChild(td5);
+    return tr;
+  }
+
+  function render(){
+    var tabs = document.querySelectorAll('.tab');
+    for(var i = 0; i < tabs.length; i++){
+      var k = tabs[i].getAttribute('data-sheet');
+      tabs[i].setAttribute('aria-selected', k === tab ? 'true' : 'false');
+      tabs[i].querySelector('.n').textContent = db[k].length;
+    }
+    elName.textContent = SCHEMA[tab].name;
+    elUnit.textContent = SCHEMA[tab].unit;
+
+    var list = sorted(tab);
+    var frag = document.createDocumentFragment();
+    if(!list.length){
+      var tr = document.createElement('tr');
+      tr.className = 'empty';
+      var td = document.createElement('td');
+      td.colSpan = 5;
+      td.textContent = '点上方「＋ 添加一条」开始记录';
+      tr.appendChild(td);
+      frag.appendChild(tr);
+    }else{
+      for(var n = 0; n < list.length; n++) frag.appendChild(buildRow(tab, list[n]));
+    }
+    elBody.textContent = '';
+    elBody.appendChild(frag);
+    updateStatus();
+  }
+
+  function addRecord(){
+    var cfg = SCHEMA[tab];
+    var rec = {id:uid(), date:today(), v:null, tag:cfg.tags[0], note:'', seq:Date.now()};
+    db[tab].push(rec);
+    save();
+    render();
+    var row = document.querySelector('tr[data-id="' + rec.id + '"]');
+    if(row){
+      var vi = row.querySelector('input[type="number"]');
+      if(vi){ try{ vi.focus({preventScroll:true}); }catch(e){ vi.focus(); } }
+      if(row.scrollIntoView) row.scrollIntoView({block:'nearest'});
+    }
+  }
+
+  function delRecord(key, id){
+    var rec = null;
+    for(var i = 0; i < db[key].length; i++){ if(db[key][i].id === id){ rec = db[key][i]; break; } }
+    if(!rec) return;
+    var what = rec.v === null ? '这条空记录' : (SCHEMA[key].name + ' ' + rec.v + ' ' + SCHEMA[key].unit);
+    if(!confirm('删除 ' + rec.date + ' 的' + what + '？')) return;
+    db[key] = db[key].filter(function(r){ return r.id !== id; });
+    flush();
+    render();
+  }
+
+  function download(filename, text, mime){
+    var blob = new Blob([text], {type:mime});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 5000);
+  }
+
+  function doExport(){
+    if(!db.glucose.length && !db.weight.length){ alert('还没有记录可以导出。'); return; }
+    download('血糖体重_' + today() + '.csv', buildCSV(), 'text/csv;charset=utf-8');
+  }
+
+  function doBackup(){
+    if(!db.glucose.length && !db.weight.length){ alert('还没有记录可以备份。'); return; }
+    download('血糖体重备份_' + today() + '.json', buildBackup(), 'application/json');
+  }
+
+  function doClear(){
+    var n = db[tab].length;
+    if(!n){ alert('这一页还没有记录。'); return; }
+    if(!confirm('清空「' + SCHEMA[tab].name + '」的 ' + n + ' 条记录？\n清空前建议先「导出 CSV」留个底。')) return;
+    db[tab] = [];
+    flush();
+    render();
+  }
+
+  /* ---------- 安装到桌面 / 离线 ---------- */
+  var TIP_KEY = 'glw.tip';
+
+  function isStandalone(){
+    try{
+      if(window.matchMedia){
+        if(matchMedia('(display-mode: standalone)').matches) return true;
+        if(matchMedia('(display-mode: fullscreen)').matches) return true;
+      }
+      if(navigator.standalone) return true;
+    }catch(e){}
+    return false;
+  }
+
+  function initInstallTip(){
+    var el = document.getElementById('tip');
+    if(!el || isStandalone()) return;
+    var dismissed = false;
+    try{ dismissed = localStorage.getItem(TIP_KEY) === '1'; }catch(e){}
+    if(dismissed) return;
+    el.hidden = false;
+    var x = document.getElementById('tipx');
+    if(x) x.addEventListener('click', function(){
+      el.hidden = true;
+      try{ localStorage.setItem(TIP_KEY, '1'); }catch(e){}
+    });
+  }
+
+  function registerSW(){
+    if(!('serviceWorker' in navigator)) return;
+    var secure = location.protocol === 'https:' ||
+                 location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if(!secure) return;
+    navigator.serviceWorker.register('sw.js').catch(function(){ /* 离线可用性不影响记录 */ });
+  }
+
+  function init(){
+    load();
+    if(!storageOK) notifyStorageFail();
+    render();
+    initInstallTip();
+    registerSW();
+
+    var tabs = document.querySelectorAll('.tab');
+    for(var i = 0; i < tabs.length; i++){
+      tabs[i].addEventListener('click', function(){
+        var k = this.getAttribute('data-sheet');
+        if(k === tab) return;
+        tab = k;
+        render();
+      });
+    }
+
+    document.getElementById('add').addEventListener('click', addRecord);
+    document.getElementById('csv').addEventListener('click', doExport);
+    document.getElementById('backup').addEventListener('click', doBackup);
+    document.getElementById('clear').addEventListener('click', doClear);
+
+    var file = document.getElementById('file');
+    document.getElementById('restore').addEventListener('click', function(){ file.click(); });
+    file.addEventListener('change', function(){
+      var f = file.files && file.files[0];
+      file.value = '';
+      if(!f) return;
+      var reader = new FileReader();
+      reader.onload = function(){
+        var obj = null;
+        try{ obj = JSON.parse(String(reader.result)); }catch(e){ alert('读取失败：不是有效的备份文件。'); return; }
+        var n = normalize(obj);
+        if(!n){ alert('这个文件里没有可恢复的记录。'); return; }
+        if(!confirm('恢复备份会覆盖现在的全部记录（血糖 ' + db.glucose.length + ' 条、体重 ' + db.weight.length + ' 条），继续？')) return;
+        db.glucose = n.glucose;
+        db.weight = n.weight;
+        flush();
+        render();
+        alert('已恢复：血糖 ' + n.glucose.length + ' 条、体重 ' + n.weight.length + ' 条。');
+      };
+      reader.onerror = function(){ alert('读取失败，请重试。'); };
+      reader.readAsText(f);
+    });
+
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'hidden') flush();
+    });
+  }
+
+  window.__glw = {
+    db:db, SCHEMA:SCHEMA, parseVal:parseVal, cleanRecord:cleanRecord, normalize:normalize,
+    sorted:sorted, fmtDate:fmtDate, csvCell:csvCell, buildCSV:buildCSV, buildBackup:buildBackup,
+    flush:flush, render:render, addRecord:addRecord,
+    get tab(){ return tab; }, get storageOK(){ return storageOK; }
+  };
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>
